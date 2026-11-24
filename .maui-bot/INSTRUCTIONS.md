@@ -18,30 +18,30 @@ The checkout you start in is the fork `iamlawrencev/maui-fixbot` (a fork of dotn
    `.github/CONTRIBUTING.md` and `.github/copilot-instructions.md`.
 2. Add the upstream remote and fetch the bases:
    `git remote add upstream https://github.com/dotnet/maui.git` (ignore "already exists"),
-   then `git fetch upstream net11 main --depth=200`.
-3. **Get API access to dotnet/maui.** The session's GitHub proxy only serves API calls for
-   repositories attached to the session; the fork is attached, `dotnet/maui` is not. Call the
-   `add_repo` tool (from the claude-code-remote MCP server) with
-   `{"owner":"dotnet","repo":"maui","access":"push"}` to attach credentials. If it answers that
-   read access is already available, call it again with `access:"push"` as it says. Then check that
-   `gh api repos/dotnet/maui/issues/1 --jq .number` works. If it still fails, you can only use the
-   search API and `git fetch`; continue, but you will not be able to open the upstream PR
-   (use the `pushed-no-pr` path in step 5). Record what worked in NOTES.md.
+   then `git ls-remote upstream refs/heads/net11 refs/heads/main` and
+   `git fetch upstream net11 main --depth=200`. Upstream sometimes deletes and recreates `net11`
+   for a few minutes during release work. If `net11` is missing, wait 5 minutes and check again,
+   up to 3 times; if still missing, only take issues whose fix belongs on `main`, or finish the run.
+   Never use `net11.0`, `inflight/*` or `candidate/*` as a base.
+3. **GitHub access.** This session can't call dotnet/maui's repo API or open PRs there (that is
+   known; don't try `add_repo` with push, it is refused). What works: the search API
+   (`gh api -X GET search/issues ...`, which also returns PR state), `WebFetch` of
+   `https://github.com/dotnet/maui/issues/<n>` and `.../pull/<n>` to read threads, `git fetch`
+   from upstream, and full push access to the fork (`origin`). The upstream PR is opened later by
+   a separate step on the owner's machine, from files you leave on the `maui-bot` branch (step 5).
 4. **Rate limits.** GitHub's search API has a strict secondary rate limit. Make at most ~8 search
-   calls per run, with `sleep 5` between them, and prefer repo endpoints
-   (`gh issue list -R dotnet/maui ...`, `gh api repos/dotnet/maui/issues/<n>/timeline`) once
-   access is attached. If you hit a secondary rate limit, wait 60–120 seconds before retrying,
+   calls per run, with `sleep 5` between them, and use WebFetch of issue pages
+   for details instead of extra searches. If you hit a secondary rate limit, wait 60–120 seconds before retrying,
    and never retry in a tight loop.
 
 ## 1. Find candidates
 
-Use `gh` (or the GitHub API via curl if `gh` is unauthenticated; public reads work without auth,
-but are rate-limited). Look for issues in `dotnet/maui` that are:
+Use the search API (see the query tips in NOTES.md) and WebFetch. Look for issues in `dotnet/maui` that are:
 
 - open, type bug (label `t/bug`, or labels like `good first issue` / `help wanted`), no assignee;
 - not in the ledger;
-- with **no linked or open PR** (check `gh pr list -R dotnet/maui --search "<issue number>"`
-  and the issue timeline for cross-referenced PRs);
+- with **no linked or open PR** (search `repo:dotnet/maui is:pr <issue number>`, check the issue page for
+  linked PRs, and `git log upstream/net11 upstream/main --grep=<issue number>` for fixes already merged);
 - with a clear repro or a clear description of wrong behavior;
 - with no unresolved design debate, `proposal/*`, `api-*`, `s/needs-*` or "needs discussion" signals;
 - in code that can be built and unit-tested **on Linux without a device**:
@@ -101,28 +101,27 @@ test is meaningful. If anything is doubtful, abandon instead of publishing.
 1. Commit with message `Fix #<issue>: <short summary>`, and add the trailer line
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 2. Push the branch to the fork (`origin`).
-3. Open a PR **to `dotnet/maui`**, base = the chosen branch, head = `iamlawrencev:claude/maui-fix-<issue>`,
-   with "Allow edits from maintainers" enabled (the default for `gh pr create`).
-   Use `gh pr create -R dotnet/maui --base <base> --head iamlawrencev:claude/maui-fix-<issue>`
-   if `gh` is authenticated, otherwise any GitHub tool you have that can open a cross-fork PR.
-   Title: `[<area>] Fix <short summary>` (look at recent merged PRs for the prefix convention).
-   Body must follow `.github/PULL_REQUEST_TEMPLATE.md`, keeping its sections:
+3. Write the PR for the opener step: create `.maui-bot/pr/<issue>.md` on the `maui-bot` branch.
+   Its first line is the PR title, `[<area>] Fix <short summary>` (look at recent merged PRs for
+   the prefix convention); the rest is the PR body, following `.github/PULL_REQUEST_TEMPLATE.md`:
    - Target Branch section with the checkbox ticked for the base you chose.
    - **Description of Change**: root cause, the fix, and why it is safe.
    - **Issues Fixed**: `Fixes #<issue>`.
    - A **Testing** note: which test(s) were added, which test project was run on Linux, and
      that iOS/Android/Windows/Mac were **not** run on device.
    - A final line: `This PR was prepared by an AI agent (Claude Code) and checked by its unit tests.`
-4. If you can't open the upstream PR (no permission/tool), leave the pushed branch, and in the
-   ledger set status `pushed-no-pr` with the compare URL
-   `https://github.com/dotnet/maui/compare/<base>...iamlawrencev:maui-fixbot:claude/maui-fix-<issue>?expand=1`.
+4. Add a ledger entry with status `ready-for-pr`, plus `"base": "<base>"` and
+   `"branch": "claude/maui-fix-<issue>"`. The opener step opens the PR from
+   `iamlawrencev:claude/maui-fix-<issue>` into `dotnet/maui:<base>` (maintainer edits allowed),
+   then sets the entry to `pr-open` with the PR URL.
 
 Do not comment on, label, or assign issues. Do not open more than one PR per run. Never push to
 any `dotnet/*` repository directly, never retarget or merge PRs.
 
 ## 6. Follow up on earlier PRs (every run, before step 1 if time allows)
 
-For ledger entries with status `pr-open`, check the PR (`gh pr view <url> --json state,reviews,comments,statusCheckRollup`):
+For ledger entries with status `pr-open`, check the PR (search API for its state, WebFetch of the
+PR page for reviews, comments and checks):
 - merged/closed → update status to `merged` / `closed` and note any maintainer feedback in NOTES.md
   as a lesson for future picks.
 - If a maintainer requested a small, clear change and you can make it confidently, push the fix
@@ -133,7 +132,7 @@ For ledger entries with status `pr-open`, check the PR (`gh pr view <url> --json
 ## 7. Record and finish
 
 1. Update `.maui-bot/ledger.json` (append; keep valid JSON):
-   `{"issue": 12345, "date": "YYYY-MM-DD", "status": "pr-open|pushed-no-pr|skipped|abandoned|merged|closed", "pr": "<url or null>", "reason": "<one line>"}`.
+   `{"issue": 12345, "date": "YYYY-MM-DD", "status": "ready-for-pr|pr-open|skipped|abandoned|merged|closed", "pr": "<url or null>", "reason": "<one line>"}`.
 2. Append useful lessons to `.maui-bot/NOTES.md` (working build/test commands, time taken,
    access that did or didn't work, maintainer feedback). Keep it short and deduplicated.
    Keep a `## Needs human` section listing anything only the account owner can do.
