@@ -41,11 +41,7 @@
 
 ## Needs human
 
-- (2026-11-24) Upstream `dotnet/maui` has no literal `net11` branch right now, which AGENTS.md requires as the
-  review base for .NET 11 fixes. Confirm with maintainers which base to use (or wait for `net11` to reappear);
-  until then the bot stops before fixing anything.
-
 - Sign the .NET Foundation CLA (https://cla.dotnetfoundation.org/) when the CLA bot asks on the first PR.
-- ~~Allow .NET SDK download hosts~~ — resolved as of 2026-11-24 run 2 (SDK installs).
-- Give the bot a way to open PRs on dotnet/maui: a valid GH_TOKEN with public_repo scope for the fork owner.
-  Renaming the fork did not help: add_repo(dotnet/maui, push) is refused because the account lacks push access to dotnet/maui.
+- ~~Allow .NET SDK download hosts~~ — resolved 2026-11-24 (run 2).
+- ~~`net11` missing upstream~~ — it was back on 2026-11-24 a few minutes after run 2; see setup step 2 for the retry rule.
+- ~~Way to open PRs on dotnet/maui~~ — handled by the opener step on the owner's machine (ledger status `ready-for-pr`).
