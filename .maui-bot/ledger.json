@@ -1,1 +1,8 @@
-[]
+[
+  {"issue": 40535, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "Tweener DivideByZero on rate 0; already has linked in-progress PR #40555"},
+  {"issue": 40375, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "TTS range message already fixed on net11 by #40376 (main still has the bug, backport/forward-port is maintainers' job)"},
+  {"issue": 39747, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "PlatformBehavior NRE already fixed on net11 by #39838"},
+  {"issue": 39667, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "Missing StaticResource NRE in Release: diagnostic request, root cause unclear without repro, possible dup of #20018"},
+  {"issue": 40432, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "Shadow/DropShadow disposal is Windows-only platform code"},
+  {"issue": 4818, "date": "2026-11-24", "status": "skipped", "pr": null, "reason": "Picker ItemDisplayBinding 'No DataContext' warning likely tooling/XamlC diagnostic; intent unclear"}
+]
