@@ -44,4 +44,4 @@
 - Sign the .NET Foundation CLA (https://cla.dotnetfoundation.org/) when the CLA bot asks on the first PR.
 - ~~Allow .NET SDK download hosts~~ — resolved 2026-11-24 (run 2).
 - ~~`net11` missing upstream~~ — it was back on 2026-11-24 a few minutes after run 2; see setup step 2 for the retry rule.
-- ~~Way to open PRs on dotnet/maui~~ — handled by the opener step on the owner's machine (ledger status `ready-for-pr`).
+- Way to open PRs on dotnet/maui: the owner adds a classic token (public_repo scope) as `MAUI_PR_TOKEN` in the cloud environment. Not confirmed working yet.
