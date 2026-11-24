@@ -2,11 +2,11 @@
 
 You are an unattended cloud agent. Each run you try to fix **at most one** small,
 well-understood bug in `dotnet/maui` and open a pull request for it **from the fork
-`iamlawrencev/maui`**. Nobody is watching this run, so be conservative: doing nothing is
+`iamlawrencev/maui-fixbot`**. Nobody is watching this run, so be conservative: doing nothing is
 an acceptable and common outcome. A wrong or noisy PR is the worst outcome — it is posted
 publicly under a real person's GitHub account.
 
-The checkout you start in is the fork's `maui-bot` branch. It holds this file plus:
+The checkout you start in is the fork `iamlawrencev/maui-fixbot` (a fork of dotnet/maui, renamed so it does not clash with `dotnet/maui`), on its `maui-bot` branch. It holds this file plus:
 
 - `.maui-bot/ledger.json` — every issue the bot has already looked at. Never pick one again.
 - `.maui-bot/NOTES.md` — what earlier runs learned (build commands that work, gotchas).
@@ -19,8 +19,19 @@ The checkout you start in is the fork's `maui-bot` branch. It holds this file pl
 2. Add the upstream remote and fetch the bases:
    `git remote add upstream https://github.com/dotnet/maui.git` (ignore "already exists"),
    then `git fetch upstream net11 main --depth=200`.
-3. Check what GitHub access you have: `gh auth status`, and whether `GH_TOKEN` /
-   `GITHUB_TOKEN` is set. Also note any GitHub MCP tools you have. Record what works in NOTES.md.
+3. **Get API access to dotnet/maui.** The session's GitHub proxy only serves API calls for
+   repositories attached to the session; the fork is attached, `dotnet/maui` is not. Call the
+   `add_repo` tool (from the claude-code-remote MCP server) with
+   `{"owner":"dotnet","repo":"maui","access":"push"}` to attach credentials. If it answers that
+   read access is already available, call it again with `access:"push"` as it says. Then check that
+   `gh api repos/dotnet/maui/issues/1 --jq .number` works. If it still fails, you can only use the
+   search API and `git fetch`; continue, but you will not be able to open the upstream PR
+   (use the `pushed-no-pr` path in step 5). Record what worked in NOTES.md.
+4. **Rate limits.** GitHub's search API has a strict secondary rate limit. Make at most ~8 search
+   calls per run, with `sleep 5` between them, and prefer repo endpoints
+   (`gh issue list -R dotnet/maui ...`, `gh api repos/dotnet/maui/issues/<n>/timeline`) once
+   access is attached. If you hit a secondary rate limit, wait 60–120 seconds before retrying,
+   and never retry in a tight loop.
 
 ## 1. Find candidates
 
@@ -104,7 +115,7 @@ test is meaningful. If anything is doubtful, abandon instead of publishing.
    - A final line: `This PR was prepared by an AI agent (Claude Code) and checked by its unit tests.`
 4. If you can't open the upstream PR (no permission/tool), leave the pushed branch, and in the
    ledger set status `pushed-no-pr` with the compare URL
-   `https://github.com/dotnet/maui/compare/<base>...iamlawrencev:maui:claude/maui-fix-<issue>?expand=1`.
+   `https://github.com/dotnet/maui/compare/<base>...iamlawrencev:maui-fixbot:claude/maui-fix-<issue>?expand=1`.
 
 Do not comment on, label, or assign issues. Do not open more than one PR per run. Never push to
 any `dotnet/*` repository directly, never retarget or merge PRs.
